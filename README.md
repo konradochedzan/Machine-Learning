@@ -21,7 +21,7 @@ $$
 The fitted Box-Cox parameter is approximately `lambda = -0.077`, which is close to zero, so the notebook proceeds with the simpler log transformation
 
 $$
-Y = \log(\mathrm{SalePrice}).
+Y = \log(SalePrice).
 $$
 
 The purpose of this step is not cosmetic. In the usual linear model
@@ -37,14 +37,14 @@ The preprocessing has two branches. Numerical missing values are filled with col
 The first estimator is ordinary least squares on the numerical features. With an augmented design matrix
 
 $$
-A = [\mathbf{1}, X],
+A = [1, X],
 $$
 
 where the first column is the intercept, the least-squares estimator is
 
 $$
 \hat{\beta}
-= \arg\min_{\beta} \lVert y - A\beta \rVert_2^2
+= \arg\min_{\beta} \|y - A\beta\|_2^2
 = (A^\top A)^{-1} A^\top y,
 $$
 
@@ -57,7 +57,7 @@ $$
 The notebook evaluates models with mean squared error
 
 $$
-\mathrm{MSE}
+MSE
 = \frac{1}{m}\sum_{i=1}^{m}(y_i - \hat{y}_i)^2
 $$
 
@@ -81,7 +81,7 @@ $$
 then
 
 $$
-\operatorname{Var}(\hat{\beta})
+Var(\hat{\beta})
 = \sigma^2 (A^\top A)^{-1}.
 $$
 
@@ -89,17 +89,17 @@ The residual variance is estimated by
 
 $$
 \hat{\sigma}^2
-= \frac{\mathrm{RSS}}{m - d - 1},
+= \frac{RSS}{m - d - 1},
 \qquad
-\mathrm{RSS}
+RSS
 = \sum_i (y_i - \hat{y}_i)^2,
 $$
 
 so the standard error of coefficient `beta_j` is
 
 $$
-\operatorname{SE}(\hat{\beta}_j)
-= \sqrt{\hat{\sigma}^2 \left[(A^\top A)^{-1}\right]_{jj}}.
+SE(\hat{\beta}_j)
+= \sqrt{\hat{\sigma}^2 [(A^\top A)^{-1}]_{jj}}.
 $$
 
 This part of the notebook exposes a numerical issue: directly inverting `A^T A` is unstable because the matrix has an eigenvalue close to zero. This means the condition number is large and small numerical perturbations can produce a poor estimate. The notebook therefore switches to the Moore-Penrose pseudoinverse. In singular value form,
@@ -124,20 +124,20 @@ The final part uses the full one-hot-encoded feature space and compares unregula
 
 $$
 \min_{\beta}
-\left\{
-\lVert y - X\beta \rVert_2^2
-+ \alpha \lVert \beta \rVert_2^2
-\right\},
+\{
+\|y - X\beta\|_2^2
++ \alpha \|\beta\|_2^2
+\},
 $$
 
 which shrinks coefficients continuously and stabilizes correlated features. LASSO solves
 
 $$
 \min_{\beta}
-\left\{
-\lVert y - X\beta \rVert_2^2
-+ \alpha \lVert \beta \rVert_1
-\right\},
+\{
+\|y - X\beta\|_2^2
++ \alpha \|\beta\|_1
+\},
 $$
 
 which uses the `L^1` penalty to promote exact sparsity, often setting many coefficients to zero. The custom pseudoinverse estimator also has a hyperparameter `t`, the singular-value threshold. The notebook tunes `alpha` or `t` over a logarithmic grid using 8-fold cross-validation, minimizing average test-fold MSE. The final comparison shows that the categorical variables carry useful signal: full-feature models outperform the numerical-only baseline. LASSO gives the best out-of-sample result in the notebook, approximately `MSE = 0.0140`, `R^2 = 0.9173`, while using only 88 nonzero coefficients. This is the main modelling conclusion: the best practical model is not the most flexible unregularized model, but a sparse regularized linear model that balances prediction accuracy and interpretability.
@@ -147,45 +147,38 @@ which uses the `L^1` penalty to promote exact sparsity, often setting many coeff
 This notebook studies binary classification and credit-risk modelling. The data are synthetic, so the true data-generating mechanism is known. There are `m = 20000` training observations and `n = 10000` test observations. The explanatory variables are generated as
 
 $$
-X_1 \sim \operatorname{Uniform}(18, 80),
+X_1 \sim U(18, 80),
 \qquad
-X_2 \sim \operatorname{Uniform}(1, 15),
+X_2 \sim U(1, 15),
 \qquad
-X_3 \sim \operatorname{Bernoulli}(0.1).
+X_3 \sim Bernoulli(0.1).
 $$
 
 Qualitatively, these represent applicant characteristics such as age-like information, financial capacity, and a binary risk flag. The notebook constructs two repayment datasets. In both cases, a borrower repays when a uniform random variable `ksi` falls below a feature-dependent repayment probability. Equivalently,
 
 $$
-Y = \mathbf{1}\{\xi < p(X)\},
+Y = I_{\xi < p(X)},
 \qquad
-\xi \sim \operatorname{Uniform}(0, 1).
+\xi \sim U(0, 1).
 $$
 
-The first probability model is logistic and essentially linear in the features:
+Here, `I_A` denotes the indicator of event `A`. The first probability model is logistic and essentially linear in the features. Define
+
+$$
+s(z) = \frac{1}{1 + e^{-z}}.
+$$
+
+Then
 
 $$
 p_1(x)
-= \operatorname{sigmoid}(13.3 - 0.33x_1 + 3.5x_2 - 3x_3),
-$$
-
-where
-
-$$
-\operatorname{sigmoid}(z)
-= \frac{1}{1 + \exp(-z)}.
+= s(13.3 - 0.33x_1 + 3.5x_2 - 3x_3).
 $$
 
 The second probability model is more nonlinear because it penalizes extreme ages:
 
 $$
-p_2(x)
-= \operatorname{sigmoid}\left(
-5
-- 10\left(\mathbf{1}\{x_1 < 25\} + \mathbf{1}\{x_1 > 75\}\right)
-+ 1.1x_2
-- x_3
-\right).
+p_2(x) = s(5 - 10(I_{x_1<25} + I_{x_1>75}) + 1.1x_2 - x_3).
 $$
 
 This construction creates a useful contrast. Dataset 1 is naturally well matched to logistic regression because the log-odds are linear in `x`. Dataset 2 contains threshold effects through indicator functions, so a more flexible nonlinear classifier should have an advantage.
@@ -194,8 +187,8 @@ The first model class is logistic regression. It estimates
 
 $$
 q_\beta(x)
-= \mathbb{P}(Y = 1 \mid X = x)
-= \operatorname{sigmoid}(\beta_0 + \beta^\top x)
+= P(Y = 1 \mid X = x)
+= s(\beta_0 + \beta^\top x)
 $$
 
 by minimizing negative conditional log-likelihood, also called cross-entropy loss:
@@ -203,10 +196,10 @@ by minimizing negative conditional log-likelihood, also called cross-entropy los
 $$
 L(\beta)
 = -\sum_i
-\left[
+\Big[
 y_i \log(q_\beta(x_i))
 + (1-y_i)\log(1-q_\beta(x_i))
-\right].
+\Big].
 $$
 
 The notebook fits separate logistic models for the two datasets and evaluates the predicted probabilities on train and test samples. As expected, logistic regression performs well on the first dataset and less well on the second, because the second has a nonlinear structure that is not directly representable by a linear logit.
@@ -215,7 +208,7 @@ The second model class is an RBF-kernel support vector classifier. Before fittin
 
 $$
 K(x, x')
-= \exp\left(-\gamma \lVert x - x' \rVert_2^2\right).
+= \exp(-\gamma \|x - x'\|_2^2).
 $$
 
 The SVM is trained with hinge-loss geometry in the reproducing kernel Hilbert space associated with `K`, and `probability=True` is used to obtain estimated repayment probabilities from the classifier. The notebook uses `gamma = 1/10`; for the first SVM it also derives `C` from the regularization parameter used in the course notation. The RKHS model is more flexible than logistic regression because nonlinear decision boundaries in the original feature space become linear boundaries in the implicit feature space.
@@ -229,22 +222,22 @@ $$
 The notebook computes
 
 $$
-\operatorname{TP}(c)
-= \#\{i : y_i = 1 \ \mathrm{and}\ \hat{p}_i > c\},
+TP(c)
+= \#\{i : y_i = 1,\ \hat{p}_i > c\},
 \qquad
-\operatorname{FP}(c)
-= \#\{i : y_i = 0 \ \mathrm{and}\ \hat{p}_i > c\},
+FP(c)
+= \#\{i : y_i = 0,\ \hat{p}_i > c\},
 $$
 
 then
 
 $$
-\operatorname{TPR}(c)
-= \frac{\operatorname{TP}(c)}{\#\{i : y_i = 1\}},
+TPR(c)
+= \frac{TP(c)}{\#\{i : y_i = 1\}},
 \qquad
-\operatorname{FDR}(c)
-= \frac{\operatorname{FP}(c)}
-{\operatorname{FP}(c) + \operatorname{TP}(c)}.
+FDR(c)
+= \frac{FP(c)}
+{FP(c) + TP(c)}.
 $$
 
 The curve is plotted as false discovery rate against true positive rate across 100 thresholds. Its area is approximated by the trapezoidal rule. In this notebook, smaller area is better because the desired curve has high true-positive rate while keeping false discoveries low. The output reflects the data-generating mechanisms: on dataset 1, logistic regression and RKHS SVM are very close; on dataset 2, the nonlinear RKHS model is substantially better. The reported AUC values are approximately `0.00810` for logistic regression on dataset 2 and `0.000865` for the RKHS SVM on dataset 2.
@@ -252,8 +245,6 @@ The curve is plotted as false discovery rate against true positive rate across 1
 The last part turns predicted repayment probabilities into a lending strategy. A loan is granted only if the estimated repayment probability exceeds 95 percent:
 
 $$
-\text{accept applicant } i
-\quad \Longleftrightarrow \quad
 \hat{p}_i \geq 0.95.
 $$
 
@@ -261,30 +252,28 @@ The notebook compares three strategies. Strategy 1 accepts all applicants and ch
 
 $$
 D_{ij}
-= \mathbf{1}\{\xi_{ij} \leq p_2(x_i)\},
+= I_{\xi_{ij} \leq p_2(x_i)},
 $$
 
-where each column is one market scenario. If accepted borrower `i` repays, the lender earns interest; if they default, the lender loses the loan principal. For a set of accepted borrowers `B`, the scenario balance is of the form
+where each column is one market scenario. If accepted borrower `i` repays, the lender earns interest; if they default, the lender loses the loan principal. For a set of accepted borrowers `B`, let `R_j(B)` be the number of repayers and `F_j(B)` be the number of defaulters under scenario `j`. The scenario balance is
 
 $$
-\operatorname{Balance}_j
-= \#\{\text{repayers in }B\text{ under scenario }j\}
-\cdot \mathrm{loan}\cdot \mathrm{interest}
-- \#\{\text{defaulters in }B\text{ under scenario }j\}
-\cdot \mathrm{loan}.
+Balance_j
+= R_j(B)\cdot loan\cdot interest
+- F_j(B)\cdot loan.
 $$
 
 The notebook reports expected profit/loss
 
 $$
-\mathbb{E}[\operatorname{Balance}]
+E[Balance]
 $$
 
 and 95 percent Value at Risk, implemented as
 
 $$
-\operatorname{VaR}_{95}
-= -\operatorname{percentile}_{5}(\operatorname{Balance}).
+VaR_{95}
+= -Q_{0.05}(Balance).
 $$
 
 The main mathematical lesson is that classification probabilities are not only labels; they can be decision variables in a risk-return optimization problem. The SVM strategy has the strongest reported performance in the simulation because the nonlinear model better identifies high-quality applicants under the nonlinear repayment mechanism.
@@ -295,7 +284,7 @@ This notebook studies dynamic hedging of a European call option using both analy
 
 $$
 S_t
-= S_0 \exp\left(\sigma W_t - \frac{1}{2}\sigma^2 t\right).
+= S_0 \exp(\sigma W_t - \frac{1}{2}\sigma^2 t).
 $$
 
 Using Ito's formula, the notebook verifies that this solves
@@ -307,8 +296,8 @@ $$
 which is the Black-Scholes SDE with interest rate `r = 0`. The cancellation of the drift term follows from the Ito correction:
 
 $$
-d\exp\left(\sigma W_t - \frac{1}{2}\sigma^2 t\right)
-= \exp\left(\sigma W_t - \frac{1}{2}\sigma^2 t\right)\sigma\,dW_t.
+d\exp(\sigma W_t - \frac{1}{2}\sigma^2 t)
+= \exp(\sigma W_t - \frac{1}{2}\sigma^2 t)\sigma\,dW_t.
 $$
 
 The dataset consists of simulated paths. In discrete time, increments are generated by
@@ -344,11 +333,11 @@ $$
 The neural network is trained by minimizing empirical squared hedging error:
 
 $$
-\operatorname{Loss}(H)
-= \widehat{\mathbb{E}}
-\left[
-\left(G - p - \sum_j H_j\Delta S_j\right)^2
-\right].
+L(H)
+= \hat{E}
+\Big[
+(G - p - \sum_j H_j\Delta S_j)^2
+\Big].
 $$
 
 This is the finite-sample version of a mean-square hedging objective. If the learned strategy perfectly replicated the option in the discrete model, this loss would be zero. In practice it is minimized over the neural-network function class and evaluated by the distribution of terminal PnL errors.
@@ -374,7 +363,7 @@ where
 
 $$
 d_+
-= \frac{\log(s/K) + \left(r + \frac{1}{2}\sigma^2\right)(T-t)}
+= \frac{\log(s/K) + (r + \frac{1}{2}\sigma^2)(T-t)}
 {\sigma\sqrt{T-t}},
 \qquad
 d_- = d_+ - \sigma\sqrt{T-t}.
@@ -383,7 +372,7 @@ $$
 The hedge ratio is the derivative of the option price with respect to the stock price:
 
 $$
-H_t^{\mathrm{BS}}(s)
+H_t^{BS}(s)
 = \frac{\partial C(s,t)}{\partial s}
 = \Phi(d_+).
 $$
@@ -395,7 +384,7 @@ The notebook compares the learned deep hedge with the analytical delta hedge usi
 The second neural architecture addresses overparameterization by learning a single function of both time-to-maturity and log-price:
 
 $$
-H_j = f\left(\sqrt{T-t_j}, \log S_j\right).
+H_j = f(\sqrt{T-t_j}, \log S_j).
 $$
 
 Its architecture is `2 -> 32 -> 64 -> 32 -> 1`, again with batch normalization and SiLU activations. This model is mathematically better aligned with the Black-Scholes delta function, because the analytical hedge is itself a function of current price and time-to-maturity:
